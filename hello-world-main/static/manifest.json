@@ -1,5 +1,5 @@
 {
-  "name": "Example Gmail Extension",
+  "name": "nifty-anti-phishing",
   "description": "Example extension showing use of the Streak Gmail SDK",
   "version": "0.1",
   "content_scripts": [
@@ -17,7 +17,8 @@
     "service_worker": "background.js"
   },
   "permissions": [
-    "scripting"
+    "scripting",
+    "storage"
   ],
   "host_permissions": [
     "https://mail.google.com/"
