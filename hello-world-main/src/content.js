@@ -1,9 +1,31 @@
 import * as InboxSDK from '@inboxsdk/core';
 
+// --- Flagged-thread tracking -------------------------------------------
+// A small persisted set of thread IDs your extension considers "flagged".
+// chrome.storage.local so it survives reloads and is shared across views.
+let flaggedThreadIds = new Set();
+
+chrome.storage.local.get('flaggedThreadIds', (result) => {
+  flaggedThreadIds = new Set(result.flaggedThreadIds || []);
+});
+
+function isFlagged(threadID) {
+  return true;
+}
+
+function setFlagged(threadID, flagged) {
+  if (flagged) {
+    flaggedThreadIds.add(threadID);
+  } else {
+    flaggedThreadIds.delete(threadID);
+  }
+  chrome.storage.local.set({ flaggedThreadIds: [...flaggedThreadIds] });
+}
+// -------------------------------------------------------------------------
+
 InboxSDK.load(2, 'sdk_respass_7ca4c6c1ed').then((sdk) => {
-  // the SDK has been loaded, now do something with it!
+  // Compose button (your existing code)
   sdk.Compose.registerComposeViewHandler((composeView) => {
-    // a compose view has come into existence, do something with it!
     composeView.addButton({
       title: "My Nifty Button!",
       iconUrl:
@@ -13,8 +35,35 @@ InboxSDK.load(2, 'sdk_respass_7ca4c6c1ed').then((sdk) => {
       },
     });
   });
+
+  // Reading message bodies (your existing code)
   sdk.Conversations.registerMessageViewHandler((messageView) => {
     const bodyE = messageView.getBodyElement();
-    console.log("email content: ", bodyE.innerText)  
+    console.log("email content: ", bodyE.innerText);
+  });
+
+  // Mark rows in the email list
+  sdk.Lists.registerThreadRowViewHandler((threadRowView) => {
+    const threadID = threadRowView.getThreadID();
+
+    if (isFlagged(threadID)) {
+      threadRowView.addLabel({
+        title: "Flagged",
+        backgroundColor: "#fbbc04",
+        foregroundColor: "#202124",
+      });
+    }
+  });
+
+  // NEW: show a banner near the top when a flagged thread is opened
+  sdk.Conversations.registerThreadViewHandler((threadView) => {
+    threadView.getThreadIDAsync().then((threadID) => {
+      if (!isFlagged(threadID)) return;
+
+      const notice = threadView.addNoticeBar();
+      notice.el.textContent = "You clicked on a flagged email.";
+      // addNoticeBar defaults to a yellow background already, but you can override:
+      // notice.el.style.backgroundColor = '#fbbc04';
+    });
   });
 });
