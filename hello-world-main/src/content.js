@@ -13,4 +13,8 @@ InboxSDK.load(2, 'sdk_respass_7ca4c6c1ed').then((sdk) => {
       },
     });
   });
+  sdk.Conversations.registerMessageViewHandler((messageView) => {
+    const bodyE = messageView.getBodyElement();
+    console.log("email content: ", bodyE.innerText)  
+  });
 });
