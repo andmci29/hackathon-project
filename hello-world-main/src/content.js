@@ -5,9 +5,17 @@ import { scanEmailLinks } from './linkScanner.js';
 // --- Flagged-thread tracking -------------------------------------------
 
 let flaggedThreadIds = new Set();
+let checkedMessagesThreadIds = new Set();
+let superFlaggedThreadIds = new Set();
 
 chrome.storage.local.get('flaggedThreadIds', (result) => {
   flaggedThreadIds = new Set(result.flaggedThreadIds || []);
+});
+chrome.storage.local.get('checkedMessagesThreadIds', (result) => {
+  checkedMessagesThreadIds = new Set(result.checkedMessagesThreadIds || []);
+});
+chrome.storage.local.get('superFlaggedThreadIds', (result) => {
+  superFlaggedThreadIds = new Set(result.superFlaggedThreadIds || []);
 });
 
 
@@ -152,7 +160,14 @@ InboxSDK.load(2, 'sdk_respass_7ca4c6c1ed').then((sdk) => {
     const threadID = threadRowView.getThreadID();
     const subject = threadRowView.getSubject();
 
-    if (isFlagged(threadID, subject)) {
+    if (superFlaggedThreadIds.has(threadID)) {
+      threadRowView.addLabel({
+        title: "Threat",
+        backgroundColor: "#fb6f04",
+        foregroundColor: "#202124",
+      });
+    }
+    else if (!checkedMessagesThreadIds.has(threadID) && isFlagged(threadID, subject)) {
 
       threadRowView.addLabel({
         title: "Flagged",
@@ -227,6 +242,42 @@ InboxSDK.load(2, 'sdk_respass_7ca4c6c1ed').then((sdk) => {
         const summary =
           document.createElement("div");
 
+        if (!checkedMessagesThreadIds.has(threadID)) {
+
+          checkedMessagesThreadIds.add(threadID);
+
+          chrome.storage.local.set({
+            checkedMessagesThreadIds: [...checkedMessagesThreadIds]
+          });
+
+          if (suspiciousLinks === 0) {
+
+            flaggedThreadIds.delete(threadID);
+
+            chrome.storage.local.set({
+              flaggedThreadIds: [...flaggedThreadIds]
+            });
+
+            console.log(
+              "Thread cleared after scan:",
+              threadID
+            );
+
+          } else {
+
+            superFlaggedThreadIds.add(threadID);
+
+            chrome.storage.local.set({
+              superFlaggedThreadIds: [...superFlaggedThreadIds]
+            });
+
+            console.log(
+              "Thread upgraded to threat:",
+              threadID
+            );
+          }
+        }
+
         if (totalLinks === 0) {
 
           summary.textContent =
@@ -282,12 +333,15 @@ InboxSDK.load(2, 'sdk_respass_7ca4c6c1ed').then((sdk) => {
         notice.el.appendChild(report);
 
       } else {
-        // New placement for non-flagged emails
-        const notice = threadView.addNoticeBar();
-        notice.el.textContent = "Link tools:";
+        threadView.addToolbarButton({
+          title: "Scan Links",
+          iconUrl:
+            "https://avatars.githubusercontent.com/u/10098702?v=4",
 
-        notice.el.appendChild(scanButton);
-        notice.el.appendChild(report);
+          onClick() {
+            scanButton.click();
+          }
+        });
       }
 
     });
