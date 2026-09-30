@@ -49,7 +49,8 @@ function isFlagged(threadID, subject = "") {
     "claim",
     "login",
     "sign in",
-    "reset"
+    "reset",
+    "credit card"
   ];
 
   for (const word of suspiciousWords) {
@@ -148,7 +149,6 @@ InboxSDK.load(2, 'sdk_respass_7ca4c6c1ed').then((sdk) => {
   // -----------------------------------------------------------------------
 
   sdk.Lists.registerThreadRowViewHandler((threadRowView) => {
-
     const threadID = threadRowView.getThreadID();
     const subject = threadRowView.getSubject();
 
@@ -170,41 +170,27 @@ InboxSDK.load(2, 'sdk_respass_7ca4c6c1ed').then((sdk) => {
 
 
   // -----------------------------------------------------------------------
-  // Show a banner near the top when a flagged thread is opened
+  // Show banner + Scan Links button for ALL emails
   // -----------------------------------------------------------------------
 
   sdk.Conversations.registerThreadViewHandler((threadView) => {
 
     threadView.getThreadIDAsync().then((threadID) => {
 
-      if (!flaggedThreadIds.has(threadID)) return;
+      const isThreadFlagged = flaggedThreadIds.has(threadID);
 
-      const notice = threadView.addNoticeBar();
-
-      notice.el.textContent =
-        "You clicked on a flagged email.";
-
-      // --------------------------------------------------
-      // Scan Links button
-      // --------------------------------------------------
-
+      // Create Scan Links button
       const scanButton = document.createElement("button");
-
       scanButton.textContent = "Scan Links";
       scanButton.style.marginLeft = "10px";
       scanButton.style.padding = "4px 10px";
       scanButton.style.cursor = "pointer";
 
       const report = document.createElement("div");
-
       report.style.marginTop = "6px";
       report.style.fontSize = "13px";
 
-
-      // --------------------------------------------------
-      // Scan button
-      // --------------------------------------------------
-
+      // Shared scan logic
       scanButton.addEventListener("click", async () => {
 
         const messageViews = threadView.getMessageViews();
@@ -218,14 +204,10 @@ InboxSDK.load(2, 'sdk_respass_7ca4c6c1ed').then((sdk) => {
         const messageView =
           messageViews[messageViews.length - 1];
 
-
-        // Show scanning status
         report.textContent = "Scanning links...";
-
 
         const results =
           await scanEmailLinks(messageView);
-
 
         if (!results) {
           report.textContent =
@@ -233,29 +215,17 @@ InboxSDK.load(2, 'sdk_respass_7ca4c6c1ed').then((sdk) => {
           return;
         }
 
-
-        // --------------------------------------------------
-        // Calculate summary
-        // --------------------------------------------------
-
         const totalLinks = results.length;
-
         const suspiciousLinks =
-          results.filter(
-            result => result.suspicious
-          ).length;
+          results.filter(result => result.suspicious).length;
 
         const safeLinks =
           totalLinks - suspiciousLinks;
 
-
-        // Clear previous report
         report.innerHTML = "";
-
 
         const summary =
           document.createElement("div");
-
 
         if (totalLinks === 0) {
 
@@ -275,14 +245,9 @@ InboxSDK.load(2, 'sdk_respass_7ca4c6c1ed').then((sdk) => {
             `${suspiciousLinks} suspicious, ${safeLinks} normal.`;
         }
 
-
         report.appendChild(summary);
 
-
-        // --------------------------------------------------
         // Show suspicious link details
-        // --------------------------------------------------
-
         for (const result of results) {
 
           if (!result.suspicious) {
@@ -303,9 +268,28 @@ InboxSDK.load(2, 'sdk_respass_7ca4c6c1ed').then((sdk) => {
         }
       });
 
+      // --------------------------------------------------
+      // Placement logic
+      // --------------------------------------------------
 
-      notice.el.appendChild(scanButton);
-      notice.el.appendChild(report);
+      if (isThreadFlagged) {
+        // Existing flagged banner
+        const notice = threadView.addNoticeBar();
+        notice.el.textContent =
+          "You clicked on a flagged email.";
+
+        notice.el.appendChild(scanButton);
+        notice.el.appendChild(report);
+
+      } else {
+        // New placement for non-flagged emails
+        const notice = threadView.addNoticeBar();
+        notice.el.textContent = "Link tools:";
+
+        notice.el.appendChild(scanButton);
+        notice.el.appendChild(report);
+      }
+
     });
   });
 
