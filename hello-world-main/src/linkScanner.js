@@ -68,7 +68,7 @@ export async function scanEmailLinks(messageView) {
         // 1. Dangerous protocols
         // --------------------------------------------------
 
-        if (!["http:", "https:", "mailto:"].includes(url.protocol)) {
+        if (!["http:", "https:", "mailto:", "tel:"].includes(url.protocol)) {
             reasons.push("Non-HTTP/HTTPS protocol");
         }
 
