@@ -1,22 +1,32 @@
 import * as InboxSDK from '@inboxsdk/core';
-import { scanEmailLinks } from './linkScanner.js';
+import { scanEmailContent } from './linkScanner.js';
+
+(function loadCustomFont() {
+  if (!document.getElementById('alan-sans-font')) {
+    const link = document.createElement('link');
+    link.id = 'alan-sans-font';
+    link.rel = 'stylesheet';
+    link.href = 'https://fonts.googleapis.com/css2?family=Alan+Sans:wght@400;700&display=swap';
+    document.head.appendChild(link);
+  }
+})();
 
 // --- State Tracking ----------------------------------------------------
 
 let flaggedThreadIds = new Set();
 let checkedMessagesThreadIds = new Set();
 let superFlaggedThreadIds = new Set();
-let safeThreadIds = new Set(); // User-whitelisted threads
+let safeThreadIds = new Set();
 
 const SUSPICIOUS_WORDS = [
   "urgent", "immediately", "action required", "verify", "verification",
   "confirm", "account", "password", "security", "suspended", "locked",
   "unusual activity", "suspicious activity", "unauthorized activity",
   "payment", "billing", "invoice", "refund", "winner", "prize",
-  "claim", "login", "sign in", "reset", "credit card"
+  "claim", "login", "sign in", "reset", "credit card", "gift card", "wire transfer",
+  "social security", "ssn", "million dollars", "prince", "hurry"
 ];
 
-// Load persisted state from storage
 function loadStorage() {
   return new Promise((resolve) => {
     chrome.storage.local.get(
@@ -32,7 +42,6 @@ function loadStorage() {
   });
 }
 
-// Persist all sets to storage
 function saveStorage() {
   chrome.storage.local.set({
     flaggedThreadIds: [...flaggedThreadIds],
@@ -42,7 +51,6 @@ function saveStorage() {
   });
 }
 
-// Heuristic calculation
 function calculateSuspiciousScore(text) {
   let score = 0;
   const lowerText = text.toLowerCase();
@@ -99,7 +107,6 @@ async function init() {
       const threadView = messageView.getThreadView();
 
       threadView.getThreadIDAsync().then((threadID) => {
-        // Skip heuristic scoring if user manually marked as safe or threat
         if (safeThreadIds.has(threadID) || superFlaggedThreadIds.has(threadID)) return;
 
         const subject = threadView.getSubject() || "";
@@ -117,7 +124,6 @@ async function init() {
     sdk.Lists.registerThreadRowViewHandler((threadRowView) => {
       const threadID = threadRowView.getThreadID();
 
-      // Explicitly marked safe by user -> No label
       if (safeThreadIds.has(threadID)) return;
 
       const subject = threadRowView.getSubject() || "";
@@ -126,134 +132,136 @@ async function init() {
 
       if (superFlaggedThreadIds.has(threadID)) {
         threadRowView.addLabel({
-          title: "Threat",
+          title: "UNSAFE",
           backgroundColor: "#d93025",
           foregroundColor: "#ffffff",
         });
       } else if (!checkedMessagesThreadIds.has(threadID) && (flaggedThreadIds.has(threadID) || score >= 2)) {
         threadRowView.addLabel({
-          title: "Flagged",
+          title: "CAUTION",
           backgroundColor: "#fbbc04",
           foregroundColor: "#202124",
         });
       }
     });
 
-    // 3. Inject control panel banner and toolbar controls inside email view
+    // 3. Inject Control Panel on Email Threads
     sdk.Conversations.registerThreadViewHandler((threadView) => {
       threadView.getThreadIDAsync().then((threadID) => {
 
-        // Render Notice Banner with Controls
-        function renderBanner() {
+        function renderSecurityPanel() {
           const isThreat = superFlaggedThreadIds.has(threadID);
           const isFlagged = flaggedThreadIds.has(threadID);
           const isSafe = safeThreadIds.has(threadID);
 
-          // Only show banner if there is a security flag or explicit safety confirmation
-          if (!isThreat && !isFlagged && !isSafe) return;
-
           const notice = threadView.addNoticeBar();
           const container = notice.el;
-          container.style.cssText = "display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; padding: 6px 12px;";
+          container.style.cssText = "display: flex; flex-direction: column; gap: 8px; padding: 12px 16px; border-radius: 2px; margin-bottom: 12px; font-family: 'Alan Sans', Arial, sans-serif;";
 
-          const textSpan = document.createElement("span");
+          const topRow = document.createElement("div");
+          topRow.style.cssText = "display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;";
+
+          const statusText = document.createElement("span");
+          statusText.style.cssText = "font-size: 16px; font-weight: bold;";
+
           const buttonGroup = document.createElement("div");
-          buttonGroup.style.cssText = "display: flex; gap: 6px; align-items: center;";
+          buttonGroup.style.cssText = "display: flex; gap: 8px; align-items: center;";
 
+          const reportArea = document.createElement("div");
+          reportArea.style.cssText = "font-size: 14px; line-height: 1.5; margin-top: 4px; font-family: 'Alan Sans', Arial, sans-serif;";
+
+          // Persistent warning text rendering based on state
           if (isThreat) {
-            textSpan.innerHTML = "<strong>⚠ Malicious Threat Detected:</strong> Exercise extreme caution with links or attachments.";
+            statusText.innerHTML = "<strong>DANGER: Do Not Trust This Email!</strong>";
             container.style.backgroundColor = "#fce8e6";
             container.style.color = "#a50e0e";
+            container.style.border = "2px solid #d93025";
+            reportArea.style.color = "#a50e0e";
+            reportArea.innerHTML = "<div>Please <strong>do not click any links</strong>, open any attachments, or reply with credit card numbers, gift cards, or personal information.</div>";
           } else if (isFlagged) {
-            textSpan.innerHTML = "<strong>⚡ Suspicious Email:</strong> Preliminary analysis detected unusual patterns.";
+            statusText.innerHTML = "<strong>CAUTION: This Email Looks Suspicious</strong>";
             container.style.backgroundColor = "#fef7e0";
-            container.style.color = "#b06000";
+            container.style.color = "#8c4a00";
+            container.style.border = "2px solid #fbbc04";
+            reportArea.style.color = "#8c4a00";
+            reportArea.innerHTML = "<div>Please be careful. We advise you to <strong>scan the email before proceeding</strong></div>";
           } else if (isSafe) {
-            textSpan.innerHTML = "<strong>✓ Verified Safe:</strong> Marked as trusted by user.";
+            statusText.innerHTML = "<strong>SAFE: This Email Is Clear to Read</strong>";
             container.style.backgroundColor = "#e6f4ea";
             container.style.color = "#137333";
+            container.style.border = "2px solid #1e8e3e";
+          } else {
+            statusText.innerHTML = "<strong>Security Controls: </strong>";
+            container.style.backgroundColor = "#f1f3f4";
+            container.style.color = "#202124";
+            container.style.border = "2px solid #dadce0";
           }
 
-          // Scan Button
-          const scanBtn = createButton("Scan Links", "#1a73e8", "#ffffff", async () => {
-            reportArea.textContent = "Scanning links...";
+          // --- Buttons ---
+          const scanBtn = createButton("Check This Email", "#1a73e8", "#ffffff", async () => {
+            reportArea.style.color = "#202124";
+            reportArea.innerHTML = "<strong>Checking this email for safety... Please wait.</strong>";
+
             const messageViews = threadView.getMessageViews();
             if (!messageViews.length) return;
 
-            const results = await scanEmailLinks(messageViews[messageViews.length - 1], true);
+            const report = await scanEmailContent(messageViews[messageViews.length - 1], true);
             checkedMessagesThreadIds.add(threadID);
 
-            if (!results || results.length === 0) {
-              reportArea.textContent = "No links detected.";
+            if (!report) {
+              reportArea.textContent = "Unable to check this email right now.";
               return;
             }
 
-            const suspicious = results.filter(r => r.suspicious);
-            if (suspicious.length > 0) {
-              markThreadAsThreat(threadID);
-              reportArea.textContent = `Found ${suspicious.length} suspicious link(s). Thread updated to Threat.`;
-            } else {
-              reportArea.textContent = `Scan complete: ${results.length} link(s) verified safe.`;
-            }
-            saveStorage();
-          });
-
-          // Mark Safe Button
-          const safeBtn = createButton("Mark as Safe", "#1e8e3e", "#ffffff", () => {
-            markThreadAsSafe(threadID);
-            notice.destroy();
-            renderBanner();
-          });
-
-          // Flag Threat Button
-          const threatBtn = createButton("Flag Threat", "#d93025", "#ffffff", () => {
-            markThreadAsThreat(threadID);
-            notice.destroy();
-            renderBanner();
-          });
-
-          // Reset Override Button (shown if user manually changed state)
-          if (isSafe) {
-            const resetBtn = createButton("Reset Status", "#5f6368", "#ffffff", () => {
-              clearThreadOverrides(threadID);
-              notice.destroy();
-              renderBanner();
-            });
-            buttonGroup.appendChild(resetBtn);
-          } else {
-            buttonGroup.appendChild(scanBtn);
-            buttonGroup.appendChild(safeBtn);
-            buttonGroup.appendChild(threatBtn);
-          }
-
-          const reportArea = document.createElement("div");
-          reportArea.style.cssText = "width: 100%; font-size: 12px; margin-top: 4px;";
-
-          container.appendChild(textSpan);
-          container.appendChild(buttonGroup);
-          container.appendChild(reportArea);
-        }
-
-        // Add Quick Action Button to standard Gmail Toolbar
-        threadView.addToolbarButton({
-          title: "Security Options",
-          iconUrl: "https://fonts.gstatic.com/s/i/short-term/release/googlesymbols/shield/default/24px.svg",
-          onClick() {
-            if (safeThreadIds.has(threadID)) {
+            if (report.suspicious) {
               markThreadAsThreat(threadID);
             } else {
               markThreadAsSafe(threadID);
             }
-          }
-        });
 
-        renderBanner();
+            setTimeout(() => {
+              notice.destroy();
+              renderSecurityPanel();
+            }, 800);
+          });
+
+          const safeBtn = createButton("Mark as Safe", "#1e8e3e", "#ffffff", () => {
+            markThreadAsSafe(threadID);
+            notice.destroy();
+            renderSecurityPanel();
+          });
+
+          const threatBtn = createButton("Mark as Unsafe", "#d93025", "#ffffff", () => {
+            markThreadAsThreat(threadID);
+            notice.destroy();
+            renderSecurityPanel();
+          });
+
+          const resetBtn = createButton("Start Over", "#5f6368", "#ffffff", () => {
+            clearThreadOverrides(threadID);
+            notice.destroy();
+            renderSecurityPanel();
+          });
+
+          buttonGroup.appendChild(scanBtn);
+          buttonGroup.appendChild(safeBtn);
+          buttonGroup.appendChild(threatBtn);
+          if (isSafe || isThreat) {
+            buttonGroup.appendChild(resetBtn);
+          }
+
+          topRow.appendChild(statusText);
+          topRow.appendChild(buttonGroup);
+          container.appendChild(topRow);
+          container.appendChild(reportArea);
+        }
+
+        renderSecurityPanel();
       });
     });
   });
 }
 
-// Helper to create styled action buttons
 function createButton(label, bgColor, textColor, onClickHandler) {
   const btn = document.createElement("button");
   btn.textContent = label;
@@ -261,14 +269,16 @@ function createButton(label, bgColor, textColor, onClickHandler) {
     background-color: ${bgColor};
     color: ${textColor};
     border: none;
-    padding: 4px 10px;
-    font-size: 12px;
-    font-weight: 500;
-    border-radius: 4px;
+    padding: 7px 14px;
+    font-size: 13px;
+    font-weight: bold;
+    border-radius: 2px;
+    font-family: 'Alan Sans', Arial, sans-serif;
     cursor: pointer;
-    transition: opacity 0.2s;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.12);
+    transition: background-color 0.2s;
   `;
-  btn.onmouseover = () => btn.style.opacity = "0.85";
+  btn.onmouseover = () => btn.style.opacity = "0.9";
   btn.onmouseout = () => btn.style.opacity = "1.0";
   btn.addEventListener("click", onClickHandler);
   return btn;
