@@ -13,7 +13,10 @@ const SUSPICIOUS_WORDS = [
   "confirm", "account", "password", "security", "suspended", "locked",
   "unusual activity", "suspicious activity", "unauthorized activity",
   "payment", "billing", "invoice", "refund", "winner", "prize",
-  "claim", "login", "sign in", "reset", "credit card"
+  "claim", "login", "sign in", "reset", "credit card", "phone number", "social security", "personal information",
+  "free money", "limited time", "risk", "threat", "danger", "alert", "warning",
+  "click here", "download"
+
 ];
 
 // Load persisted state from storage
