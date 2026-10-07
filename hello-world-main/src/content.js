@@ -161,11 +161,11 @@ async function init() {
           buttonGroup.style.cssText = "display: flex; gap: 6px; align-items: center;";
 
           if (isThreat) {
-            textSpan.innerHTML = "<strong>⚠ Malicious Threat Detected:</strong> Exercise extreme caution with links or attachments.";
+            textSpan.innerHTML = "<strong> Malicious Threat Detected:</strong> Exercise extreme caution with links or attachments.";
             container.style.backgroundColor = "#fce8e6";
             container.style.color = "#a50e0e";
           } else if (isFlagged) {
-            textSpan.innerHTML = "<strong>⚡ Suspicious Email:</strong> Preliminary analysis detected unusual patterns.";
+            textSpan.innerHTML = "<strong> Suspicious Email:</strong> Preliminary analysis detected unusual patterns.";
             container.style.backgroundColor = "#fef7e0";
             container.style.color = "#b06000";
           } else if (isSafe) {
