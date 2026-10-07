@@ -173,6 +173,7 @@ async function init() {
           // Persistent warning text rendering based on state
           if (isThreat) {
             statusText.innerHTML = "<strong>DANGER: Do Not Trust This Email!</strong>";
+            textSpan.innerHTML = "<strong> Malicious Threat Detected:</strong> Exercise extreme caution with links or attachments.";
             container.style.backgroundColor = "#fce8e6";
             container.style.color = "#a50e0e";
             container.style.border = "2px solid #d93025";
@@ -180,6 +181,7 @@ async function init() {
             reportArea.innerHTML = "<div>Please <strong>do not click any links</strong>, open any attachments, or reply with credit card numbers, gift cards, or personal information.</div>";
           } else if (isFlagged) {
             statusText.innerHTML = "<strong>CAUTION: This Email Looks Suspicious</strong>";
+            textSpan.innerHTML = "<strong> Suspicious Email:</strong> Preliminary analysis detected unusual patterns.";
             container.style.backgroundColor = "#fef7e0";
             container.style.color = "#8c4a00";
             container.style.border = "2px solid #fbbc04";
