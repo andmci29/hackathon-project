@@ -24,10 +24,9 @@ const SUSPICIOUS_WORDS = [
   "unusual activity", "suspicious activity", "unauthorized activity",
   "payment", "billing", "invoice", "refund", "winner", "prize",
   "claim", "login", "sign in", "reset", "credit card", "gift card", "wire transfer",
-  "social security", "ssn", "million dollars", "prince", "hurry", "phone number", "social security", "personal information",
-  "free money", "limited time", "risk", "threat", "danger", "alert", "warning",
-  "click here", "download"
-
+  "social security", "ssn", "million dollars", "prince", "hurry", "phone number",
+  "personal information", "free money", "limited time", "risk", "threat",
+  "danger", "alert", "warning", "click here", "download"
 ];
 
 function loadStorage() {
@@ -176,7 +175,6 @@ async function init() {
           // Persistent warning text rendering based on state
           if (isThreat) {
             statusText.innerHTML = "<strong>DANGER: Do Not Trust This Email!</strong>";
-            textSpan.innerHTML = "<strong> Malicious Threat Detected:</strong> Exercise extreme caution with links or attachments.";
             container.style.backgroundColor = "#fce8e6";
             container.style.color = "#a50e0e";
             container.style.border = "2px solid #d93025";
@@ -184,19 +182,18 @@ async function init() {
             reportArea.innerHTML = "<div>Please <strong>do not click any links</strong>, open any attachments, or reply with credit card numbers, gift cards, or personal information.</div>";
           } else if (isFlagged) {
             statusText.innerHTML = "<strong>CAUTION: This Email Looks Suspicious</strong>";
-            textSpan.innerHTML = "<strong> Suspicious Email:</strong> Preliminary analysis detected unusual patterns.";
             container.style.backgroundColor = "#fef7e0";
             container.style.color = "#8c4a00";
             container.style.border = "2px solid #fbbc04";
             reportArea.style.color = "#8c4a00";
-            reportArea.innerHTML = "<div>Please be careful. We advise you to <strong>scan the email before proceeding</strong></div>";
+            reportArea.innerHTML = "<div>Please be careful. We advise you to <strong>scan the email before proceeding</strong>.</div>";
           } else if (isSafe) {
             statusText.innerHTML = "<strong>SAFE: This Email Is Clear to Read</strong>";
             container.style.backgroundColor = "#e6f4ea";
             container.style.color = "#137333";
             container.style.border = "2px solid #1e8e3e";
           } else {
-            statusText.innerHTML = "<strong>Security Controls: </strong>";
+            statusText.innerHTML = "<strong>Security Controls: Ready to Scan</strong>";
             container.style.backgroundColor = "#f1f3f4";
             container.style.color = "#202124";
             container.style.border = "2px solid #dadce0";
