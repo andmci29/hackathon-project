@@ -24,7 +24,10 @@ const SUSPICIOUS_WORDS = [
   "unusual activity", "suspicious activity", "unauthorized activity",
   "payment", "billing", "invoice", "refund", "winner", "prize",
   "claim", "login", "sign in", "reset", "credit card", "gift card", "wire transfer",
-  "social security", "ssn", "million dollars", "prince", "hurry"
+  "social security", "ssn", "million dollars", "prince", "hurry", "phone number", "social security", "personal information",
+  "free money", "limited time", "risk", "threat", "danger", "alert", "warning",
+  "click here", "download"
+
 ];
 
 function loadStorage() {
